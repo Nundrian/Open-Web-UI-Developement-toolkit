@@ -4,7 +4,7 @@
 
 This is a Python **Workspace Tool** for [Open WebUI](https://github.com/open-webui/open-webui). It sends authenticated requests to a separate [Open Terminal](https://github.com/open-webui/open-terminal) server so a tool-enabled language model can work with files and execute development commands in a configured workspace.
 
-**Status:** v1.1.2 public-source edition, adapted from the original v1.1.1 script. The bundled example API key and its fingerprint diagnostic have been removed; configuration now requires an explicit secret. This is **not** an official Open WebUI or OpenAI product.
+**Status:** v1.1.3 public-source edition, adapted from the original v1.1.1 script; v1.1.3 blocks HTTP redirects on authenticated Open Terminal requests. The bundled example API key and its fingerprint diagnostic have been removed; configuration now requires an explicit secret. This is **not** an official Open WebUI or OpenAI product.
 
 ## Functions
 
@@ -94,6 +94,8 @@ The exact response shape for command execution depends on the Open Terminal serv
 
 ## Security and scope
 
+See [SECURITY.md](SECURITY.md) for the detailed trust boundaries, token redirect protection and reporting guidance.
+
 **This toolkit exposes real shell execution, writing and deletion-capable workflows.** The `_safe_path()` method lexically validates requested file paths and command starting directories against `WORKSPACE_ROOT`, but it does **not** constrain what a shell command itself can access. It also does not prevent symlink traversal or implement a secure server-side file sandbox.
 
 - Run Open Terminal in an isolated Docker container with only the workspace files it needs. Never mount your entire home directory or sensitive data just for convenience.
@@ -109,9 +111,9 @@ Open WebUI explicitly warns that Workspace Tools run Python code inside its serv
 
 - The original v1.1.1 tool was used in development-environment checks; a separate Magazine audit recorded tool selection and calls, but **not** complete proof of all intended on-disk side effects.
 - This repository includes an **offline unit smoke test** (`toolkit_tests/test_development_toolkit.py`) for API-key defaults, path checks and representative request formation. It does not replace testing against a running Open Terminal server.
-- The public v1.1.2 adaptation must be configured with an API key; it does not silently reuse a development credential.
+- The public v1.1.3 adaptation must be configured with an API key; it does not silently reuse a development credential.
 
-Run the included local tests with Python and Pydantic available:
+Run the included local tests (including the HTTP redirect security regression) with Python and Pydantic available:
 
 ```bash
 python -m unittest discover -s toolkit_tests -v
