@@ -1,7 +1,7 @@
 """
 title: Development Toolkit
 author: Nundrian
-version: 1.1.2
+version: 1.1.3
 description: Open WebUI workspace tools backed by Open Terminal for file editing, command execution, searches, process control, and diagnostics. Use with a restricted Docker workspace.
 """
 
@@ -154,7 +154,7 @@ class Tools:
         This function does NOT contact Open Terminal.
         """
         result = {
-            "toolkit_version": "1.1.2",
+            "toolkit_version": "1.1.3",
             "base_url": self.valves.BASE_URL,
             "workspace_root": self.valves.WORKSPACE_ROOT,
             "request_timeout_seconds": self.valves.REQUEST_TIMEOUT_SECONDS,
