@@ -16,6 +16,13 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
+class _RejectRedirects(urllib.request.HTTPRedirectHandler):
+    """Reject redirects so an API bearer token cannot be forwarded elsewhere."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 class Tools:
     class Valves(BaseModel):
         BASE_URL: str = Field(
@@ -97,7 +104,10 @@ class Tools:
         effective_timeout = timeout or self.valves.REQUEST_TIMEOUT_SECONDS
 
         try:
-            with urllib.request.urlopen(request, timeout=effective_timeout) as response:
+            # urllib's default redirect handler can forward Authorization headers
+            # to another origin. Never follow redirects for authenticated calls.
+            opener = urllib.request.build_opener(_RejectRedirects())
+            with opener.open(request, timeout=effective_timeout) as response:
                 raw = response.read()
                 content_type = response.headers.get("content-type", "")
                 if "application/json" in content_type:
