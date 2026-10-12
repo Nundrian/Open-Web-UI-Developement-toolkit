@@ -122,4 +122,8 @@ python -m unittest discover -s toolkit_tests -v
 - [`development_toolkit.py`](./development_toolkit.py) — Open WebUI tool source.
 - [`toolkit_tests/test_development_toolkit.py`](./toolkit_tests/test_development_toolkit.py) — offline unit smoke tests.
 
-The Open Terminal server is a **separate dependency** and is not included in this repository. No licence has yet been selected for this project.
+The Open Terminal server is a **separate dependency** and is not included in this repository.
+
+## Licence
+
+MIT. See [LICENSE](LICENSE). Personal and commercial use, modification and redistribution are permitted subject to the MIT licence. Third-party dependencies retain their own licences.
