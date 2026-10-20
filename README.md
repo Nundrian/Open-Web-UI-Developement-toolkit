@@ -4,17 +4,17 @@
 
 This is a Python **Workspace Tool** for [Open WebUI](https://github.com/open-webui/open-webui). It sends authenticated requests to a separate [Open Terminal](https://github.com/open-webui/open-terminal) server so a tool-enabled language model can work with files and execute development commands in a configured workspace.
 
-**Status:** v1.1.3 public-source edition, adapted from the original v1.1.1 script; v1.1.3 blocks HTTP redirects on authenticated Open Terminal requests. The bundled example API key and its fingerprint diagnostic have been removed; configuration now requires an explicit secret. This is **not** an official Open WebUI or OpenAI product.
+**Status:** **v1.2.3**, independently checked against the submitted audit source and exercised in live Open WebUI/Open Terminal acceptance tests. This remains a community project, **not** an official Open WebUI or OpenAI product. The earlier v1.1.3 implementation is replaced in-place and remains available through Git history.
 
 ## Functions
 
 | Area | Functions | Purpose |
 | --- | --- | --- |
-| Diagnostics | `diagnose_runtime_config`, `test_open_terminal_auth`, `test_open_terminal_execute` | Inspect non-secret settings, check authentication and exercise a fixed harmless command |
+| Internal diagnostics | `_diagnose_runtime_config`, `_test_open_terminal_auth`, `_test_open_terminal_execute` | Private helpers; intentionally hidden from the model-visible public tool list |
 | Commands | `dev_run_command` | Execute shell commands in the Open Terminal environment |
 | Files | `dev_list_files`, `dev_read_file`, `dev_write_file`, `dev_replace_file_content` | List, read, create, overwrite and precisely edit files |
 | Search | `dev_grep_search`, `dev_glob_search` | Find content and file paths |
-| Processes | `dev_get_process_status`, `dev_kill_process` | Check or stop long-running commands |
+| Processes | `dev_list_processes`, `dev_get_process_status`, `dev_kill_process` | Discover, inspect and stop running or completed commands |
 
 All functions use the Open Terminal HTTP API. The toolkit has no separate database and does not run Open Terminal itself.
 
@@ -78,19 +78,27 @@ For other deployment options, see the [official Open Terminal installation guide
 | `API_KEY` | The exact secret configured on the Open Terminal server; **no default is provided** |
 | `WORKSPACE_ROOT` | `/workspace` (or the actual workspace path inside Open Terminal) |
 | `REQUEST_TIMEOUT_SECONDS` | `60` to start |
+| `CONFIRM_SHELL_COMMANDS` | `true` (default). Require user confirmation for every shell command. |
+| `FILE_WRITE_APPROVAL` | `sensitive` (default), `always`, or `never`. The `always` policy is strongest for interactive file changes. |
+| `MAX_APPROVAL_CONTENT_CHARS` | `8000` by default; may be raised to `30000` through Valves for longer source files (maximum `50000`). |
+| `CONFIRM_TIMEOUT_SECONDS` | `60` seconds by default; raise it if confirmations need longer, keeping Open WebUI's own WebSocket event timeout in mind. |
+| `MAX_OUTPUT_CHARS` | `10000` by default; lengthy tool output is summarised while retaining important process metadata. |
 
 If Open WebUI and Open Terminal run as **separate Docker containers on different networks**, a container-local URL such as `http://open-terminal:8000` may not resolve. Use a verified private network address instead; do **not** use `localhost` in Open WebUI to refer to a different container.
 
-### 3. Test the connection in order
+### 3. Test the connection and confirmations
 
-Enable the toolkit for a model with dependable function calling, either from the chat's **Tools** picker or **Workspace → Models** settings. Then ask the model to call:
+Enable the toolkit for a model with reliable function calling. Run small, **separate** calls and inspect the actual tool responses rather than relying only on the model's summary.
 
-1. `diagnose_runtime_config` — confirm `api_key_configured` is `true` and the URL/workspace are correct. This does not contact Open Terminal.
-2. `test_open_terminal_auth` — check the configured API key against `GET /api/config`.
-3. `test_open_terminal_execute` — execute the fixed `echo TOOLKIT_EXECUTE_TEST` command remotely.
-4. `dev_list_files` with `directory="."` — verify the intended workspace is reachable. Try `dev_run_command` with `command="pwd"` before permitting broader commands.
+1. Call `dev_list_files(directory=".")` to verify that `/workspace` is reachable.
+2. Call `dev_read_file(path="../outside.txt")` and verify that the path is rejected with `INVALID_ARGUMENT`.
+3. Call `dev_run_command(command="echo APPROVAL_TEST", cwd="/workspace")`. **Decline** the first confirmation; expect `APPROVAL_REQUIRED` and no process ID.
+4. Call the same command again and **Approve**; expect a process ID, `status: done`, exit code `0`, and the echoed text.
+5. Try creating a uniquely named `.py` file via `dev_write_file`; verify that rejection leaves it absent and approval permits the write. Use `dev_read_file` to verify the contents.
 
-The exact response shape for command execution depends on the Open Terminal server version. A successful response is **not** proof that every subsequent command is safe.
+For approval to work, the chat/browser must deliver an interactive confirmation event. If it is unavailable or times out, the toolkit should refuse the operation; it must not run without approval when confirmation is required.
+
+**Do not embed API keys in the script or GitHub repository.** Set the Open Terminal token privately in the tool Valves.
 
 ## Security and scope
 
@@ -109,15 +117,16 @@ Open WebUI explicitly warns that Workspace Tools run Python code inside its serv
 
 ## Testing and limitations
 
-- The original v1.1.1 tool was used in development-environment checks; a separate Magazine audit recorded tool selection and calls, but **not** complete proof of all intended on-disk side effects.
-- This repository includes an **offline unit smoke test** (`toolkit_tests/test_development_toolkit.py`) for API-key defaults, path checks and representative request formation. It does not replace testing against a running Open Terminal server.
-- The public v1.1.3 adaptation must be configured with an API key; it does not silently reuse a development credential.
-
-Run the included local tests (including the HTTP redirect security regression) with Python and Pydantic available:
+The repository includes an offline smoke-test suite and a redirect-security regression. Run them from the repository root with Python 3.11+ and Pydantic 2.x:
 
 ```bash
+python -m pip install "pydantic>=2,<3"
 python -m unittest discover -s toolkit_tests -v
 ```
+
+The v1.2.3 audit additionally passed **59 standalone regression tests and 300 deterministic rendering stress cases** in a separate audit package; those full audit scripts are not part of this repository's small smoke-test suite. Live acceptance tested approval/denial, source editing, failure exit codes, output truncation, asynchronous process recovery and process termination.
+
+These results do not make shell execution inherently safe. `WORKSPACE_ROOT` is a lexical restriction, **not** a filesystem sandbox, and a permitted command may reach anything accessible to Open Terminal. Container mounts, user permissions and network isolation are the real boundaries.
 
 ## Project files
 
