@@ -4,7 +4,7 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from development_toolkit import Tools
+from development_toolkit import Tools, ToolkitError
 
 
 class _SilentHandler(BaseHTTPRequestHandler):
@@ -45,7 +45,7 @@ class RedirectSecurityTests(unittest.TestCase):
             tool.valves.BASE_URL = f"http://127.0.0.1:{redirector.server_port}"
             tool.valves.API_KEY = "test-only-secret"
 
-            with self.assertRaisesRegex(RuntimeError, r"HTTP 302"):
+            with self.assertRaisesRegex(ToolkitError, r"HTTP 302"):
                 tool._request_sync("GET", "/api/config")
 
             self.assertEqual(
